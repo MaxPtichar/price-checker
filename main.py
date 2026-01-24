@@ -13,16 +13,26 @@ from parsers import OZBY
 from system import SaveLoad
 
 
-async def main(parser, load, url_list):
+async def main(parser, load):
     await load.load_db()
     await load.load_negative_cash()
+
+    current_id = 101436802  # 101436802
+    butch_size = 40
+    total_to_parse = 1000
+
+    for _ in range(0, total_to_parse, butch_size):
+        url_list = [
+            f"https://oz.by/books/more{x}.html"
+            for x in range(current_id, current_id + butch_size)
+        ]
+
     connector = aiohttp.TCPConnector(limit=10)
     async with aiohttp.ClientSession(connector=connector) as session:
 
         sem = asyncio.Semaphore(5)
         task_list = [parser.get_product(url, session, sem) for url in url_list]
         results = await asyncio.gather(*task_list)
-        print(results)
         for product in results:
             if isinstance(product, Product):
                 load.add_to_db(product)
@@ -32,6 +42,10 @@ async def main(parser, load, url_list):
     await load.save_negative_cash()
     await load.save_db()
 
+    current_id += butch_size
+
+    await asyncio.sleep(1)
+
 
 if __name__ == "__main__":
     headres = {
@@ -39,11 +53,8 @@ if __name__ == "__main__":
     }
     parser = OZBY(headres)
     load = SaveLoad()
-    a = 60  # 101436802
-    b = a + 5
-    url_list = [f"https://oz.by/books/more{x}.html" for x in range(a, b)]
 
     try:
-        asyncio.run(main(parser, load, url_list))
+        asyncio.run(main(parser, load))
     except KeyboardInterrupt:
         raise
