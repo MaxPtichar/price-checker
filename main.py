@@ -1,12 +1,8 @@
 import asyncio
-import json
-import os
-import time
-from collections import defaultdict
-from sqlite3 import connect
+from tkinter.ttk import Progressbar
 
 import aiohttp
-from requests import session
+from tqdm import tqdm
 
 from model import Product
 from parsers import OZBY
@@ -32,7 +28,21 @@ async def main(parser, load):
 
         sem = asyncio.Semaphore(5)
         task_list = [parser.get_product(url, session, sem) for url in url_list]
-        results = await asyncio.gather(*task_list)
+
+        progress_bar = tqdm(total=len(task_list), desc="Парсинг товаров", unit="стр")
+        results = []
+
+        for task in asyncio.as_completed(task_list):
+            product = await task
+            results.append(product)
+
+            progress_bar.update(1)
+
+            if isinstance(product, Product):
+                progress_bar.set_postfix(last_found=product.name[:15])
+
+        progress_bar.close()
+
         for product in results:
             if isinstance(product, Product):
                 load.add_to_db(product)
