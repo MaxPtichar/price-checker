@@ -1,49 +1,49 @@
+import asyncio
 import json
 import os
 import time
 from collections import defaultdict
+from sqlite3 import connect
+
+import aiohttp
+from requests import session
 
 from model import Product
 from parsers import OZBY
+from system import SaveLoad
+
+
+async def main(parser, load, url_list):
+    await load.load_db()
+    await load.load_negative_cash()
+    connector = aiohttp.TCPConnector(limit=10)
+    async with aiohttp.ClientSession(connector=connector) as session:
+
+        sem = asyncio.Semaphore(5)
+        task_list = [parser.get_product(url, session, sem) for url in url_list]
+        results = await asyncio.gather(*task_list)
+        print(results)
+        for product in results:
+            if isinstance(product, Product):
+                load.add_to_db(product)
+            elif isinstance(product, int) and product != 0:
+                load.id_add_to_set(product)
+
+    await load.save_negative_cash()
+    await load.save_db()
+
 
 if __name__ == "__main__":
-    file_path = "data.json"
-    file_path_id_errors = "id_not_exist.json"
-    if os.path.exists(file_path_id_errors):
-        with open(file_path_id_errors, "r", encoding="utf-8") as f_id:
-            id_not_exist = set(json.load(f_id))
-    else:
-        id_not_exist = set()
-
-    if os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        print(f"Загружено из кэша: {len(data)} товаров")
-    else:
-        data = {}
     headres = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
     }
     parser = OZBY(headres)
-    a = 101436805
-    b = a + 10
-    for i in range(a, b):
-        if str(i) in data or i in id_not_exist:
-            continue
-        time.sleep(1.5)
-        get_book = parser.get_product(f"https://oz.by/books/more{i}.html")
-        if get_book and get_book.price > 0:
+    load = SaveLoad()
+    a = 60  # 101436802
+    b = a + 5
+    url_list = [f"https://oz.by/books/more{x}.html" for x in range(a, b)]
 
-            product_dict = get_book.to_dict()
-            data[i] = product_dict
-            print(f"{data[i]} загружен")
-        else:
-            id_not_exist.add(i)
-
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-    print(f"Готово! Теперь в базе {len(data)} товаров.")
-
-    with open(file_path_id_errors, "w", encoding="utf-8") as f_id:
-        json.dump(list(id_not_exist), f_id, ensure_ascii=False, indent=4)
-    print(data)
+    try:
+        asyncio.run(main(parser, load, url_list))
+    except KeyboardInterrupt:
+        raise

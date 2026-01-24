@@ -1,0 +1,10 @@
+# Данные (самое важное!)
+*.json
+*.db
+*.html
+
+# Системное
+__pycache__/
+.venv/
+.idea/
+.vscode/

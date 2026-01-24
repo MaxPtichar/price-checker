@@ -1,10 +1,13 @@
+import asyncio
 import re
+from typing import Union
 
+import aiohttp
 import lxml
-import requests
 from bs4 import BeautifulSoup
 
 from model import Product
+from system import SaveLoad
 
 
 class BaseParser:
@@ -18,43 +21,41 @@ class BaseParser:
 
 class OZBY(BaseParser):
     def __init__(self, headers) -> None:
+        self.id_add = SaveLoad()
         super().__init__(headers)
 
     def __str__(self) -> str:
         return super().__str__()
 
-    def get_product(self, url: str) -> Product:
-        response = requests.get(url, headers=self.headers)
-        if response.status_code == 410:
-            print(f"Ошибка 410: Ссылка {url} больше не активна.")
-            return Product("Удалено", 0.0)
-        if response.status_code != 200:
-            raise requests.HTTPError(
-                f"Запрос отклонен со статусом {response.status_code}"
-            )
+    async def get_product(
+        self, url: str, session: aiohttp.ClientSession, sem: asyncio.Semaphore
+    ) -> Union[Product, int]:
+        async with sem:
+            async with session.get(url) as response:
+                await asyncio.sleep(2)
+                if response.status == 410:
+                    print(f"Ошибка 410: Ссылка {url} больше не активна.")
+                    nums = re.findall(r"\d+", url)
 
-        soup = BeautifulSoup(response.text, "lxml")
-        price_pattern = re.compile(r"(\d+[,.]\d+)\s*р\.?")
+                    return int(nums[0]) if nums else 0
+                if response.status != 200:
+                    print(f"{response.status} ")
+                    return 0
 
-        title_tag = soup.select_one("h1")
-        title = title_tag.text.strip() if title_tag else "Текст не найден"
+                soup = BeautifulSoup(await response.text(), "lxml")
+                price_pattern = re.compile(r"(\d+[,.]\d+)\s*р\.?")
 
-        final_price = 0.0
-        price_text = soup.find(text=price_pattern)
+                title_tag = soup.select_one("h1")
+                title = title_tag.text.strip() if title_tag else "Текст не найден"
 
-        if price_text:
-            match = price_pattern.search(price_text)
-            if match:
+                final_price = 0.0
+                price_text = soup.find(text=price_pattern)
 
-                clean_price = match.group(1).replace(",", ".")
-                final_price = float(clean_price)
+                if price_text:
+                    match = price_pattern.search(price_text)
+                    if match:
+
+                        clean_price = match.group(1).replace(",", ".")
+                        final_price = float(clean_price)
 
         return Product(name=title, price=final_price)
-
-
-headres = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
-}
-parser = OZBY(headres)
-product = parser.get_product("https://oz.by/books/more101453162.html")
-print(product)
