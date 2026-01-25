@@ -1,5 +1,4 @@
 import asyncio
-from tkinter.ttk import Progressbar
 
 import aiohttp
 from tqdm import tqdm
@@ -11,11 +10,11 @@ from system import SaveLoad
 
 
 async def main(parser, load):
-    await load.load_db()
+
     await load.load_negative_cash()
 
     current_id = 101436802  # 101436802
-    butch_size = 10
+    butch_size = 40
     total_to_parse = 1000
 
     for _ in range(0, total_to_parse, butch_size):
@@ -51,7 +50,6 @@ async def main(parser, load):
                 load.id_add_to_set(product)
 
     await load.save_negative_cash()
-    await load.save_db()
 
     current_id += butch_size
 
