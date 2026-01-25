@@ -13,7 +13,7 @@ async def main(parser, load):
 
     await load.load_negative_cash()
 
-    current_id = 101436802  # 101436802
+    current_id = db.get_last_id()  # 101436802
     butch_size = 40
     total_to_parse = 1000
 
