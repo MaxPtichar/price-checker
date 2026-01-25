@@ -1,4 +1,3 @@
-import asyncio
 import json
 import os
 
@@ -9,6 +8,7 @@ class SaveLoad:
     def __init__(self) -> None:
         self.file_path = "data.json"
         self.file_path_id_errors = "id_not_exist.json"
+
         self.db_data = {}
         self.negative_id = set()
 
@@ -43,11 +43,13 @@ class SaveLoad:
         async with aiofiles.open(self.file_path_id_errors, "w", encoding="utf-8") as f:
             id_to_save = list(self.negative_id)
             await f.write(json.dumps(id_to_save, ensure_ascii=False, indent=4))
-            print(f"Сохранено {len(id_to_save)}")
+            print(f"Добавлено {len(id_to_save)} id.")
 
     async def save_db(self, product_dict=None):
         if product_dict:
             self.db_data.update(product_dict)
         async with aiofiles.open(self.file_path, "w", encoding="utf-8") as f:
             await f.write(json.dumps(self.db_data, ensure_ascii=False, indent=4))
-            print(f"Сохранено {len(self.db_data)}")
+            print(
+                f"Добавлено {len(product_dict) if product_dict else 0} товаров. Всего {len(self.db_data)} товаров."
+            )

@@ -4,6 +4,7 @@ from tkinter.ttk import Progressbar
 import aiohttp
 from tqdm import tqdm
 
+from dataDB import Database
 from model import Product
 from parsers import OZBY
 from system import SaveLoad
@@ -14,7 +15,7 @@ async def main(parser, load):
     await load.load_negative_cash()
 
     current_id = 101436802  # 101436802
-    butch_size = 40
+    butch_size = 10
     total_to_parse = 1000
 
     for _ in range(0, total_to_parse, butch_size):
@@ -45,7 +46,7 @@ async def main(parser, load):
 
         for product in results:
             if isinstance(product, Product):
-                load.add_to_db(product)
+                db.add_data(product)
             elif isinstance(product, int) and product != 0:
                 load.id_add_to_set(product)
 
@@ -61,6 +62,9 @@ if __name__ == "__main__":
     headres = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
     }
+
+    db = Database("ozby.db")
+    db.create_table()
     parser = OZBY(headres)
     load = SaveLoad()
 

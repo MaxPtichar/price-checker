@@ -3,7 +3,6 @@ import re
 from typing import Union
 
 import aiohttp
-import lxml
 from bs4 import BeautifulSoup
 
 from model import Product
