@@ -14,47 +14,59 @@ async def main(parser):
     negative_cache = set(db.get_bad_id())
     print(negative_cache)
     current_id = db.get_last_id()
-    butch_size = 10
-    total_to_parse = 1000
+    butch_size = 40
+    total_to_parse = 100
 
-    for _ in range(0, total_to_parse, butch_size):
-        url_list = [
-            (f"https://oz.by/books/more{x}.html")
-            for x in range(current_id, current_id + butch_size)
-            if x not in negative_cache
-        ]
+    progress_bar = tqdm(total=total_to_parse, desc="Parsing", unit=" items ")
 
     connector = aiohttp.TCPConnector(limit=10)
     async with aiohttp.ClientSession(connector=connector) as session:
-
         sem = asyncio.Semaphore(5)
-        task_list = [parser.get_product(url, session, sem) for url in url_list]
 
-        progress_bar = tqdm(total=len(task_list), desc="Парсинг товаров", unit="стр")
-        results = []
+        for _ in range(0, total_to_parse, butch_size):
+            url_list = [
+                (f"https://oz.by/books/more{x}.html")
+                for x in range(current_id, current_id + butch_size)
+                if x not in negative_cache
+            ]
 
-        for task in asyncio.as_completed(task_list):
-            product = await task
-            results.append(product)
+            skipped = butch_size - len(url_list)
+            if skipped > 0:
+                progress_bar.update(skipped)
 
-            progress_bar.update(1)
+            if not url_list:
+                current_id += butch_size
+                db.update_last_id(current_id)
+                progress_bar.update(butch_size)
+                continue
 
-            if isinstance(product, Product):
-                progress_bar.set_postfix(last_found=product.name[:15])
+            task_list = [parser.get_product(url, session, sem) for url in url_list]
 
-        progress_bar.close()
+            results = []
 
-        for product in results:
-            if isinstance(product, Product):
-                db.add_data(product)
-            elif isinstance(product, int) and product != 0:
-                count_currents_id += 1
-                db.add_bad_id(product)
+            for task in asyncio.as_completed(task_list):
+                product = await task
+                results.append(product)
 
-    current_id += butch_size
-    db.update_last_id(current_id)
-    print(f"Добавлено битых ссылок {count_currents_id}.")
-    await asyncio.sleep(1)
+                progress_bar.update(1)
+
+                if isinstance(product, Product):
+                    progress_bar.set_postfix(last_found=product.name[:15])
+
+            for product in results:
+                if isinstance(product, Product):
+                    db.add_data(product)
+                elif isinstance(product, int) and product != 0:
+                    count_currents_id += 1
+                    db.add_bad_id(product)
+
+            current_id += butch_size
+            db.update_last_id(current_id)
+
+            await asyncio.sleep(1)
+
+    progress_bar.close()
+    print(f"Finished. Added bad ID's during this session: {count_currents_id}.")
 
 
 if __name__ == "__main__":
