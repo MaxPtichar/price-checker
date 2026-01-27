@@ -6,14 +6,13 @@ from tqdm import tqdm
 from dataDB import Database
 from model import Product
 from parsers import OZBY
-from system import SaveLoad
 
 
 async def main(parser):
 
     count_currents_id = 0
-    negative_cash = set(db.get_bad_id())
-    print(negative_cash)
+    negative_cache = set(db.get_bad_id())
+    print(negative_cache)
     current_id = db.get_last_id()
     butch_size = 10
     total_to_parse = 1000
@@ -22,7 +21,7 @@ async def main(parser):
         url_list = [
             (f"https://oz.by/books/more{x}.html")
             for x in range(current_id, current_id + butch_size)
-            if x not in negative_cash
+            if x not in negative_cache
         ]
 
     connector = aiohttp.TCPConnector(limit=10)
@@ -66,7 +65,6 @@ if __name__ == "__main__":
     db = Database("ozby.db")
     db.create_table()
     parser = OZBY(headres)
-    load = SaveLoad()
 
     try:
         asyncio.run(main(parser))
