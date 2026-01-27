@@ -6,7 +6,6 @@ import aiohttp
 from bs4 import BeautifulSoup
 
 from model import Product
-from system import SaveLoad
 
 
 class BaseParser:
@@ -20,7 +19,7 @@ class BaseParser:
 
 class OZBY(BaseParser):
     def __init__(self, headers) -> None:
-        self.id_add = SaveLoad()
+
         super().__init__(headers)
 
     def __str__(self) -> str:
