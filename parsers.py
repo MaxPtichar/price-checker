@@ -1,5 +1,6 @@
 import asyncio
 import re
+from gettext import find
 from typing import Union
 
 import aiohttp
@@ -40,20 +41,28 @@ class OZBY(BaseParser):
                     print(f"{response.status} ")
                     return 0
 
-                soup = BeautifulSoup(await response.text(), "lxml")
-                price_pattern = re.compile(r"(\d+[,.]\d+)\s*р\.?")
+                html_text = await response.text()
 
-                title_tag = soup.select_one("h1")
-                title = title_tag.text.strip() if title_tag else "Текст не найден"
+            soup = BeautifulSoup(html_text, "lxml")
+            price_pattern = re.compile(r"(\d+[,.]\d+)\s*р\.?")
 
-                final_price = 0.0
-                price_text = soup.find(text=price_pattern)
+            title_tag = soup.select_one("h1")
+            title = title_tag.text.strip() if title_tag else "Текст не найден"
 
-                if price_text:
-                    match = price_pattern.search(price_text)
-                    if match:
+            final_price = 0.0
+            price_text = soup.find(text=price_pattern)
 
-                        clean_price = match.group(1).replace(",", ".")
-                        final_price = float(clean_price)
+            final_id = 0
+            find_id = re.findall(r"\d+", url)
+            # added find ID
 
-        return Product(name=title, price=final_price)
+            final_id = int(find_id[0]) if find_id else 0
+
+            if price_text:
+                match = price_pattern.search(price_text)
+                if match:
+
+                    clean_price = match.group(1).replace(",", ".")
+                    final_price = float(clean_price)
+
+        return Product(name=title, price=final_price, id_on_site=final_id)

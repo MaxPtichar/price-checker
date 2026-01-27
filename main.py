@@ -12,9 +12,9 @@ async def main(parser):
 
     count_currents_id = 0
     negative_cache = set(db.get_bad_id())
-    current_id = 10_000_000
-    butch_size = 40
-    total_to_parse = 100
+    current_id = 101436805
+    butch_size = 5
+    total_to_parse = 20
 
     progress_bar = tqdm(total=total_to_parse, desc="Parsing", unit=" items ")
 

@@ -22,8 +22,10 @@ class Database:
         self.execute_query(
             """CREATE TABLE IF NOT EXISTS DataFromOZ(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        items_name TEXT UNIQUE,
-        price INTEGER
+        id_on_site INTEGER UNIQUE,
+        items_name TEXT,
+        price REAL,
+        update_at DATETIME DEFAULT (datetime('now', 'localtime'))
         );"""
         )
 
@@ -45,11 +47,13 @@ class Database:
         self.execute_query("INSERT OR IGNORE INTO BadId (product_id) VALUES (?)", (1,))
 
     def add_data(self, product: Product):
-        query = (
-            "INSERT INTO DataFromOZ (items_name, price) VALUES (?,?)"
-            "ON CONFLICT (items_name) DO UPDATE SET price = excluded.price"
-        )
-        params = (product.name, product.price)
+        query = """
+            INSERT INTO DataFromOZ (id_on_site, items_name, price) VALUES (?,?,?)
+            ON CONFLICT (id_on_site) DO UPDATE SET price = excluded.price,
+            items_name = excluded.items_name,
+            update_at = datetime('now', 'localtime')
+        """
+        params = (product.id_on_site, product.name, product.price)
         self.execute_query(query, params)
 
     def get_all(self):
@@ -73,4 +77,3 @@ class Database:
         self.execute_query(
             "INSERT OR IGNORE INTO BadId (product_id) VALUES (?)", (prodcut_id,)
         )
-        # вызвать методы в main класс
