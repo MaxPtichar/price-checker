@@ -42,6 +42,7 @@ class Database:
             "INSERT OR IGNORE INTO Settings (key, value) VALUES (?, ?)",
             ("last_id", 101436802),
         )
+        self.execute_query("INSERT OR IGNORE INTO BadId (product_id) VALUES (?)", (1,))
 
     def add_data(self, product: Product):
         query = (
@@ -55,11 +56,14 @@ class Database:
         return self.cursor.fetchall()
 
     def get_last_id(self) -> int:
-        res = self.cursor.execute('SELECT value FROM Settings WHERE key = "last_id"')
-        return res[0][0] if res else 0
+        res = self.cursor.execute(
+            'SELECT value FROM Settings WHERE key = "last_id"'
+        ).fetchone()
+        print(res)
+        return res[0] if res else 1
 
     def update_last_id(self, id: int):
-        self.execute_query('UPDATE Setiings SET value = ? WHERE key = "last_id"', (id,))
+        self.execute_query('UPDATE Settings SET value = ? WHERE key = "last_id"', (id,))
 
     def get_bad_id(self):
         rows = self.execute_query("SELECT product_id FROM BadId")
@@ -69,3 +73,4 @@ class Database:
         self.execute_query(
             "INSERT OR IGNORE INTO BadId (product_id) VALUES (?)", (prodcut_id,)
         )
+        # вызвать методы в main класс
