@@ -3,6 +3,7 @@ import asyncio
 import aiohttp
 from tqdm import tqdm
 
+from config import CONFIG
 from dataDB import Database
 from logger_config import logger
 from model import Product
@@ -14,28 +15,28 @@ async def main(parser):
     count_currents_id = 0
     negative_cache = set(db.get_bad_id())
     current_id = db.get_last_id()
-    butch_size = 10
-    total_to_parse = 10
+    batch_size = CONFIG.batch_size
+    total_to_parse = CONFIG.total_to_parse
     progress_bar = tqdm(total=total_to_parse, desc="Parsing", unit=" items ")
 
-    connector = aiohttp.TCPConnector(limit=5)
+    connector = aiohttp.TCPConnector(limit=CONFIG.semaphore_limit)
     async with aiohttp.ClientSession(connector=connector) as session:
-        sem = asyncio.Semaphore(50)
+        sem = asyncio.Semaphore(CONFIG.semaphore_limit)
         ft = FetchUrl(session, sem)
 
-        for _ in range(0, total_to_parse, butch_size):
+        for _ in range(0, total_to_parse, batch_size):
             url_list = [
                 (f"https://oz.by/books/more{x}.html")
-                for x in range(current_id, current_id + butch_size)
+                for x in range(current_id, current_id + batch_size)
                 if x not in negative_cache
             ]
 
-            skipped = butch_size - len(url_list)
+            skipped = batch_size - len(url_list)
             if skipped > 0:
                 progress_bar.update(skipped)
 
             if not url_list:
-                current_id += butch_size
+                current_id += batch_size
                 db.update_last_id(current_id)
 
                 continue
@@ -60,7 +61,7 @@ async def main(parser):
                     count_currents_id += 1
                     db.add_bad_id(product)
 
-            current_id += butch_size
+            current_id += batch_size
             db.update_last_id(current_id)
 
             await asyncio.sleep(1)
@@ -74,9 +75,9 @@ if __name__ == "__main__":
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
     }
 
-    db = Database("ozby.db")
+    db = Database(CONFIG.DB_NAME)
     db.create_table()
-    parser = OZBY(headres)
+    parser = OZBY(CONFIG.headers)
 
     try:
         logger.info("Programm is running")
