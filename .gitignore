@@ -7,9 +7,11 @@ test.py
 *.json
 *.db
 *.html
+*.log
 
 # Системное
 __pycache__/
 .venv/
 .idea/
 .vscode/
+.env
