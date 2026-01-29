@@ -1,7 +1,7 @@
 import asyncio
 import re
-from itertools import product
 from typing import Union
+from unittest import result
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -17,6 +17,42 @@ class BaseParser:
     def get_product(self, url: str) -> None:
 
         raise NotImplementedError("Метод должен быть переопределен в дочернем классе")
+
+
+class FetchUrl:
+    def __init__(self, session: aiohttp.ClientSession, sem: asyncio.Semaphore) -> None:
+        self.session = session
+        self.sem = sem
+
+    async def fetch_html(self, url: str, retries: int = 3) -> str:
+        for attempt in range(retries):
+            try:
+                async with self.sem:
+                    async with self.session.get(url) as response:
+                        # await asyncio.sleep(2)
+                        if response.status == 410:
+                            logger.error(f"Error 410: link {url} is inactive")
+                            nums = re.findall(r"\d+", url)
+                            return int(nums[0]) if nums else 0
+
+                        elif response.status == 200:
+                            return await response.text()
+
+                        elif response.status == 503:
+                            wait_time = (attempt + 1) * 2
+                            logger.warning(
+                                f"503 Error. Retrying in {wait_time}s... {url}"
+                            )
+                            await asyncio.sleep(wait_time)
+                            continue
+                        else:
+                            logger.info(f"Status: {response.status} for link {url}")
+                            return 0
+
+            except Exception as e:
+                logger.error(f"Network error: {e}. {url}")
+                return 0
+        return 0
 
 
 class OZBY(BaseParser):
@@ -40,49 +76,39 @@ class OZBY(BaseParser):
         else:
             return 0.0
 
-    def _url_id_reg(self, url: str) -> int:
-        final_id = 0
+    def _extract_id(self, url: str) -> int:
+
         find_id = re.findall(r"\d+", url)
         # added find ID
 
         return int(find_id[0]) if find_id else 0
 
     async def get_product(
-        self, url: str, session: aiohttp.ClientSession, sem: asyncio.Semaphore
+        self, url: str, fetcher: FetchUrl
     ) -> Union[Product, float, int]:
-        try:
-            async with sem:
-                async with session.get(url) as response:
-                    # await asyncio.sleep(2)
-                    if response.status == 410:
-                        logger.error(f"Error 410: link {url} is not active.")
-                        nums = re.findall(r"\d+", url)
+        result = await fetcher.fetch_html(url, 3)
 
-                        return int(nums[0]) if nums else 0
-                    if response.status != 200:
-                        logger.info(f"Status: {response.status} for linr {url}")
-                        return 0
+        if isinstance(result, int):
+            return result
 
-                    html_text = await response.text()
+        return self.parse(url, result)
 
-                soup = BeautifulSoup(html_text, "lxml")
+    def parse(self, url: str, html_text: str) -> Union[Product, float, int]:
 
-                title_tag = soup.select_one("h1")
+        soup = BeautifulSoup(html_text, "lxml")
 
-                if title_tag:
-                    title = title_tag.text.strip()
-                else:
-                    title = "Text not found"
-                    logger.warning(f"Unable to find the title at {url}.")
+        title_tag = soup.select_one("h1")
 
-                final_id = self._url_id_reg(url)
-                final_price = self._parse_price(soup)
+        if title_tag:
+            title = title_tag.text.strip()
+        else:
+            title = "Title not found"
+            logger.warning(f"Unable to find the title at {url}.")
 
-            product = Product(name=title, price=final_price, id_on_site=final_id)
-            logger.debug(f"Successfully parsed: {product.id_on_site}")
+        final_id = self._extract_id(url)
+        final_price = self._parse_price(soup)
 
-            return product
+        product = Product(name=title, price=final_price, id_on_site=final_id)
+        logger.debug(f"Successfully parsed: {product.id_on_site}")
 
-        except Exception as e:
-            logger.error(f"Network error: {e}. {url}")
-            return 0
+        return product

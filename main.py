@@ -6,7 +6,7 @@ from tqdm import tqdm
 from dataDB import Database
 from logger_config import logger
 from model import Product
-from parsers import OZBY
+from parsers import OZBY, FetchUrl
 
 
 async def main(parser):
@@ -21,6 +21,7 @@ async def main(parser):
     connector = aiohttp.TCPConnector(limit=5)
     async with aiohttp.ClientSession(connector=connector) as session:
         sem = asyncio.Semaphore(50)
+        ft = FetchUrl(session, sem)
 
         for _ in range(0, total_to_parse, butch_size):
             url_list = [
@@ -39,7 +40,7 @@ async def main(parser):
 
                 continue
 
-            task_list = [parser.get_product(url, session, sem) for url in url_list]
+            task_list = [parser.get_product(url, ft) for url in url_list]
 
             results = []
 

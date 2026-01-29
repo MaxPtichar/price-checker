@@ -57,7 +57,9 @@ class Database:
             """
             params = (product.id_on_site, product.name, product.price)
             self.execute_query(query, params)
-            logger.info(f"Item {product.name} successfully added")
+            logger.info(
+                f"Item: {product.name}, price: {product.price} successfully added"
+            )
         except Exception as e:
             logger.error(
                 f"Item: {product.name},{product.id_on_site} not added. Error: {e}"
