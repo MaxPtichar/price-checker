@@ -78,8 +78,8 @@ if __name__ == "__main__":
     parser = OZBY(headres)
 
     try:
-        logger.info("Programm is running.")
+        logger.info("Programm is running")
         asyncio.run(main(parser))
-        logger.info("Programm is finished.")
+        logger.info("Programm is finished")
     except KeyboardInterrupt:
         raise
