@@ -1,5 +1,6 @@
 import sqlite3
 
+from logger_config import logger
 from model import Product
 
 
@@ -47,14 +48,20 @@ class Database:
         self.execute_query("INSERT OR IGNORE INTO BadId (product_id) VALUES (?)", (1,))
 
     def add_data(self, product: Product):
-        query = """
-            INSERT INTO DataFromOZ (id_on_site, items_name, price) VALUES (?,?,?)
-            ON CONFLICT (id_on_site) DO UPDATE SET price = excluded.price,
-            items_name = excluded.items_name,
-            update_at = datetime('now', 'localtime')
-        """
-        params = (product.id_on_site, product.name, product.price)
-        self.execute_query(query, params)
+        try:
+            query = """
+                INSERT INTO DataFromOZ (id_on_site, items_name, price) VALUES (?,?,?)
+                ON CONFLICT (id_on_site) DO UPDATE SET price = excluded.price,
+                items_name = excluded.items_name,
+                update_at = datetime('now', 'localtime')
+            """
+            params = (product.id_on_site, product.name, product.price)
+            self.execute_query(query, params)
+            logger.info(f"Item {product.name} successfully added")
+        except Exception as e:
+            logger.error(
+                f"Item: {product.name},{product.id_on_site} not added. Error: {e}"
+            )
 
     def get_all(self):
         return self.cursor.fetchall()
@@ -63,7 +70,8 @@ class Database:
         res = self.cursor.execute(
             'SELECT value FROM Settings WHERE key = "last_id"'
         ).fetchone()
-        print(res)
+
+        logger.info(f"Last ID: {res[0]}")
         return res[0] if res else 1
 
     def update_last_id(self, id: int):
@@ -74,6 +82,10 @@ class Database:
         return [row[0] for row in rows]
 
     def add_bad_id(self, prodcut_id):
-        self.execute_query(
-            "INSERT OR IGNORE INTO BadId (product_id) VALUES (?)", (prodcut_id,)
-        )
+        try:
+            self.execute_query(
+                "INSERT OR IGNORE INTO BadId (product_id) VALUES (?)", (prodcut_id,)
+            )
+            logger.info(f"{prodcut_id} added. ")
+        except Exception as e:
+            logger.error(f"{prodcut_id} not added. Error: {e}")

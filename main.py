@@ -4,6 +4,7 @@ import aiohttp
 from tqdm import tqdm
 
 from dataDB import Database
+from logger_config import logger
 from model import Product
 from parsers import OZBY
 
@@ -12,15 +13,14 @@ async def main(parser):
 
     count_currents_id = 0
     negative_cache = set(db.get_bad_id())
-    current_id = 101436805
-    butch_size = 5
-    total_to_parse = 20
-
+    current_id = db.get_last_id()
+    butch_size = 10
+    total_to_parse = 10
     progress_bar = tqdm(total=total_to_parse, desc="Parsing", unit=" items ")
 
-    connector = aiohttp.TCPConnector(limit=10)
+    connector = aiohttp.TCPConnector(limit=5)
     async with aiohttp.ClientSession(connector=connector) as session:
-        sem = asyncio.Semaphore(5)
+        sem = asyncio.Semaphore(50)
 
         for _ in range(0, total_to_parse, butch_size):
             url_list = [
@@ -65,7 +65,7 @@ async def main(parser):
             await asyncio.sleep(1)
 
     progress_bar.close()
-    print(f"Finished. Added bad ID's during this session: {count_currents_id}.")
+    logger.info(f"Finished. Added bad ID's during this session: {count_currents_id}.")
 
 
 if __name__ == "__main__":
@@ -78,6 +78,8 @@ if __name__ == "__main__":
     parser = OZBY(headres)
 
     try:
+        logger.info("Programm is running.")
         asyncio.run(main(parser))
+        logger.info("Programm is finished.")
     except KeyboardInterrupt:
         raise
